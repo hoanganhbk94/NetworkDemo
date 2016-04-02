@@ -13,42 +13,46 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.hoanganh.networkdemo.R;
+import com.example.hoanganh.networkdemo.entity.Person;
+import com.example.hoanganh.networkdemo.entity.Project;
 import com.example.hoanganh.networkdemo.utils.ServiceHandler;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by HoangAnh on 3/30/2016.
  */
 public class HomeFragment extends Fragment {
     private static final int CONTAINER = R.id.fragment_container;
-    private static final String TAG_CONTENT = "content";
-    private static final String URL = "https://api.myjson.com/bins/19px8";
-    private static final String SAVE_TEXT = "text";
-    private static boolean isRunning = true;
+    private static final String TAG_PERSON_NAME = "name";
+    private static final String TAG_PERSON_GENDER = "gender";
+    private static final String TAG_PERSON_PROJECT = "projects";
+    private static final String TAG_PROJECT_NAME = "name";
+    private static final String TAG_PROJECT_ROLE = "role";
+    private static final String URL = "https://api.myjson.com/bins/53x82";
 
     private ProgressDialog pDialog;
     private Button btnCallAPI, btnAbout;
-    private TextView txtContent;
-    private String content;
     private GetContent task;
+    private List<Person> personList = new ArrayList<>();
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (savedInstanceState != null) {
-            content = savedInstanceState.getString(SAVE_TEXT);
-        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        super.onCreateView(inflater, container, savedInstanceState);
         return inflater.inflate(R.layout.fragment_home, container, false);
     }
 
@@ -58,9 +62,6 @@ public class HomeFragment extends Fragment {
 
         btnCallAPI = (Button) view.findViewById(R.id.btnCallAPI);
         btnAbout = (Button) view.findViewById(R.id.btnAbout);
-
-        txtContent = (TextView) view.findViewById(R.id.textView);
-        if (content != null) txtContent.setText(content);
 
         btnCallAPI.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,9 +102,7 @@ public class HomeFragment extends Fragment {
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if (txtContent.getText() != null)
-            outState.putString(SAVE_TEXT, txtContent.getText().toString());
+
     }
 
     private class GetContent extends AsyncTask<Void, Void, Void> {
@@ -124,8 +123,31 @@ public class HomeFragment extends Fragment {
             String jsonStr = handler.makeServiceCall(URL, ServiceHandler.GET);
             if (jsonStr != null) {
                 try {
-                    JSONObject jsonObj = new JSONObject(jsonStr);
-                    content = jsonObj.getString(TAG_CONTENT);
+                    JSONArray jsonArray = new JSONArray(jsonStr);
+
+                    personList.clear();
+
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject jsonPersonObj = jsonArray.getJSONObject(i);
+
+                        String personName = jsonPersonObj.getString(TAG_PERSON_NAME);
+                        int gender = jsonPersonObj.getInt(TAG_PERSON_GENDER);
+
+                        // Project la 1 JSONObject
+                        JSONObject jsonProjectObj;
+                        String projectName = null, role = null;
+                        if (!jsonPersonObj.isNull(TAG_PERSON_PROJECT)) {
+                            jsonProjectObj = jsonPersonObj.getJSONObject(TAG_PERSON_PROJECT);
+                            projectName = jsonProjectObj.getString(TAG_PROJECT_NAME);
+
+                            role = jsonProjectObj.getString(TAG_PROJECT_ROLE);
+                        }
+
+                        Project project = new Project(projectName, role);
+                        Person person = new Person(personName, gender, project);
+
+                        personList.add(person);
+                    }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -143,8 +165,13 @@ public class HomeFragment extends Fragment {
                 pDialog.dismiss();
             }
 
-            if (content != null)
-                txtContent.setText(content);
+            // TODO Lay du lieu do sang list_person_fragment
+            ListPersonFragment fragment = ListPersonFragment.newInstance(personList);
+
+            FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+            fragmentTransaction.replace(CONTAINER, fragment);
+            fragmentTransaction.addToBackStack(null);
+            fragmentTransaction.commit();
         }
     }
 
